@@ -23,6 +23,47 @@ def __escape_path(path: str):
     return path.replace('"', '\\"')
 
 
+def __final_mount_procedure(source_path: str, target_path: str, partition_number: int):
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+
+    mount_options = list()
+
+    while True:
+        user_input = input('Mount in readonly mode (y/n) [y]: ')
+        if len(user_input) == 0 or user_input == 'y':
+            mount_options.append('ro')
+            break
+        elif user_input == 'n':
+            break
+        else:
+            error(message='input not valid.')
+            print()
+
+    mount_options.append('show_sys_files')
+
+    while True:
+        user_input = input('Mount as NTFS filesystem (y/n) [y]: ')
+        if len(user_input) == 0 or user_input == 'y':
+            mount_options.append('streams_interface=windows')
+            break
+        elif user_input == 'n':
+            break
+        else:
+            error(message='input not valid.')
+            print()
+
+    # generate mount command
+    mount_options_string = ','.join(mount_options)
+
+    mount_command = 'mount -o {} "{}" "{}" >/dev/null 2>&1'.format(mount_options_string, __escape_path(source_path), __escape_path(target_path))
+
+    if int(os.system(mount_command)) == 0:
+        info(message='Partition {} was mounted under "{}"'.format(partition_number, __escape_path(target_path)))
+    else:
+        error('An Error occurred. Partition could not be mounted')
+
+
 def program(input_path: str, mounting_path: str):
     # create directory which contains all mounting endpoints
     if not os.path.exists(mounting_path):
@@ -112,25 +153,12 @@ def program(input_path: str, mounting_path: str):
                ))) != 0:
                 info(message='An Error occurred. Partition could not be decrypted')
             else:
-                mounting_path_decrypted = os.path.join(mounting_path, 'partition_{}_decrypted'.format(selected_partition_number))
-                if not os.path.exists(mounting_path_decrypted):
-                    os.makedirs(mounting_path_decrypted)
                 mounting_path_dislocker_file = os.path.join(mounting_path_dislocker, 'dislocker-file')
-                if int(os.system('mount -o ro,show_sys_files,streams_interface=windows "{}" "{}" >/dev/null 2>&1'.format(
-                        __escape_path(mounting_path_dislocker_file),
-                        __escape_path(mounting_path_decrypted)
-                   ))) == 0:
-                    info(message='Partition {} was decrypted and mounted under "{}"'.format(selected_partition_number, __escape_path(mounting_path_decrypted)))
-                else:
-                    error(message='An Error occurred. Partition could not be mounted')
+                mounting_path_decrypted = os.path.join(mounting_path, 'partition_{}_decrypted'.format(selected_partition_number))
+                __final_mount_procedure(source_path=mounting_path_dislocker_file, target_path=mounting_path_decrypted, partition_number=selected_partition_number)
         else:
             mounting_path_partition = os.path.join(mounting_path, 'partition_{}'.format(selected_partition_number))
-            if not os.path.exists(mounting_path_partition):
-                os.makedirs(mounting_path_partition)
-            if int(os.system('mount "{}" "{}" >/dev/null 2>&1'.format(__escape_path(selected_partition_path), __escape_path(mounting_path_partition)))) == 0:
-                info(message='Partition {} was mounted under "{}"'.format(selected_partition_number, __escape_path(mounting_path_partition)))
-            else:
-                error('An Error occurred. Partition could not be mounted')
+            __final_mount_procedure(source_path=selected_partition_path, target_path=mounting_path_partition, partition_number=selected_partition_number)
         print()
         input('Press ENTER to mount another partition')
 
