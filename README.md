@@ -30,7 +30,7 @@ pip3 install py_ewf_mount
 ```
 
 ## Usage
-Type pyEWFmount --help to view the help.
+Type ```pyEWFmount --help``` or ```pyMountEWF --help``` to view the help.
 ```
 pyEWFmount by Florian Wahl, 03.08.2020
 
